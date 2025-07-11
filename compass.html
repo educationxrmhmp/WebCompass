@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Web Compass</title>
+</head>
+<body>
+  <h1>Compass Heading</h1>
+  <p id="heading">Waiting for data...</p>
+  <button onclick="startCompass()">Start Compass</button>
+
+  <script>
+    const headingDisplay = document.getElementById('heading');
+
+    function startCompass() {
+      // iOS 13+ requires user permission
+      if (typeof DeviceOrientationEvent !== "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission === "function") {
+        DeviceOrientationEvent.requestPermission()
+          .then(permissionState => {
+            if (permissionState === "granted") {
+              window.addEventListener("deviceorientation", handleOrientation);
+            } else {
+              headingDisplay.textContent = "Permission denied.";
+            }
+          })
+          .catch(console.error);
+      } else {
+        // Non-iOS or older Android
+        window.addEventListener("deviceorientation", handleOrientation);
+      }
+
+      // Optional: use raw Magnetometer if supported
+      if ('Magnetometer' in window) {
+        try {
+          const sensor = new Magnetometer({ frequency: 10 });
+          sensor.addEventListener("reading", () => {
+            console.log(`Magnetometer - x: ${sensor.x}, y: ${sensor.y}, z: ${sensor.z}`);
+          });
+          sensor.start();
+        } catch (e) {
+          console.error("Magnetometer not available:", e);
+        }
+      }
+    }
+
+    function handleOrientation(event) {
+      if (event.absolute || typeof event.webkitCompassHeading !== "undefined") {
+        const heading = event.webkitCompassHeading || 360 - event.alpha;
+        headingDisplay.textContent = `Compass heading: ${Math.round(heading)}°`;
+      } else {
+        headingDisplay.textContent = "Compass data not available.";
+      }
+    }
+  </script>
+</body>
+</html>
