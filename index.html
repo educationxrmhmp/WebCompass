@@ -1,209 +1,61 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Web Compass</title>
+  <title>Android Compass Test</title>
   <style>
     body {
       font-family: sans-serif;
       text-align: center;
-      padding: 1em;
+      padding: 2em;
     }
-    #compass {
-      width: 200px;
-      transition: transform 0.3s linear;
+    #heading {
+      font-size: 2em;
       margin-top: 1em;
-    }
-    .d-none {
-      display: none;
     }
   </style>
 </head>
 <body>
-  <h1>🧭 Web Compass</h1>
-
-  <p id="angle">Direction</p>
-  <img id="compass" src="" alt="Compass">
-
-  <div id="msg" class="d-none">
-    Compass not supported on this device.
-  </div>
-
-  <div style="margin-top: 1em;">
-    <label>
-      <input type="checkbox" id="locationSwitch" />
-      Show My Location
-    </label>
-  </div>
-
-  <div id="location" class="d-none">
-    <p id="coords"></p>
-    <a id="share-link" href="#" target="_blank">Open in Google Maps</a><br />
-    <button id="copyButton">Copy Link</button>
-    <p id="chromeLink" class="d-none">https://www.google.com/maps/?q=</p>
-  </div>
+  <h1>🧭 Android Compass Test</h1>
+  <button id="startBtn">Start Compass</button>
+  <p id="heading">Waiting for permission...</p>
 
   <script>
-    const compass = document.getElementById('compass');
-    const msg = document.getElementById('msg');
-    const directionDisplay = document.getElementById('angle');
-    const locationElem = document.getElementById('location');
-    const coordsElem = document.getElementById('coords');
-    const shareLinkElem = document.getElementById('share-link');
-    const locationSwitch = document.getElementById("locationSwitch");
+    const headingElem = document.getElementById("heading");
 
-    let simulatedAngle = 0;
-
-    function isAppleDevice() {
-      return [
-        "iPad Simulator", "iPhone Simulator", "iPod Simulator",
-        "iPad", "iPhone", "iPod"
-      ].includes(navigator.platform) ||
-        (navigator.userAgent.includes("Mac") && "ontouchend" in document);
-    }
-
-    function handleOrientationEvent(e) {
-      let calculatedHeading;
-      if (e.webkitCompassHeading !== undefined) {
-        calculatedHeading = e.webkitCompassHeading - 180;
-      } else if (e.alpha !== null) {
-        calculatedHeading = 180 + e.alpha;
+    function handleOrientation(e) {
+      if (e.absolute && e.alpha !== null) {
+        // Use alpha (0–360), reverse it to match compass heading
+        const heading = (360 - e.alpha) % 360;
+        headingElem.textContent = `Heading: ${heading.toFixed(0)}°`;
       } else {
-        return;
-      }
-
-      calculatedHeading -= 180;
-      if (calculatedHeading > 360) calculatedHeading -= 360;
-
-      setCompassDirection(calculatedHeading);
-    }
-
-    function setCompassDirection(angle) {
-      const label = getDirectionLabel(angle);
-      const degrees = Math.round((360 - angle) * 10) / 10;
-      directionDisplay.innerHTML = `${label} ${degrees}&deg;`;
-      compass.style.transform = `rotate(${angle}deg)`;
-    }
-
-    function getDirectionLabel(angle) {
-      if (angle >= 22.5 && angle < 67.5) return "NW";
-      if (angle >= 67.5 && angle < 112.5) return "W";
-      if (angle >= 112.5 && angle < 157.5) return "SW";
-      if (angle >= 157.5 && angle < 202.5) return "S";
-      if (angle >= 202.5 && angle < 247.5) return "SE";
-      if (angle >= 247.5 && angle < 292.5) return "E";
-      if (angle >= 292.5 && angle < 337.5) return "NE";
-      return "N";
-    }
-
-    function supportsOrientation() {
-      return 'ondeviceorientation' in window || 'ondeviceorientationabsolute' in window;
-    }
-
-    function showNotSupportedMessage() {
-      msg.classList.remove("d-none");
-    }
-
-    function initCompassListeners() {
-      if (isAppleDevice()) {
-        window.addEventListener("deviceorientation", handleOrientationEvent);
-      } else {
-        window.addEventListener("deviceorientationabsolute", handleOrientationEvent, true);
+        headingElem.textContent = "No compass data.";
       }
     }
 
-    function requestPermissionAndStart() {
+    function startCompass() {
       if (
         typeof DeviceOrientationEvent !== "undefined" &&
         typeof DeviceOrientationEvent.requestPermission === "function"
       ) {
-        DeviceOrientationEvent.requestPermission().then(response => {
+        // For iOS 13+ (not needed on Android but safe)
+        DeviceOrientationEvent.requestPermission().then((response) => {
           if (response === "granted") {
-            initCompassListeners();
+            window.addEventListener("deviceorientationabsolute", handleOrientation, true);
           } else {
-            showNotSupportedMessage();
+            headingElem.textContent = "Permission denied.";
           }
-        }).catch(showNotSupportedMessage);
+        }).catch((e) => {
+          headingElem.textContent = "Error: " + e.message;
+        });
       } else {
-        initCompassListeners();
+        // Android
+        window.addEventListener("deviceorientationabsolute", handleOrientation, true);
       }
     }
 
-    document.addEventListener("DOMContentLoaded", function () {
-      if (supportsOrientation()) {
-        requestPermissionAndStart();
-      } else {
-        showNotSupportedMessage();
-      }
-
-      // Handle location toggle
-      if (localStorage.getItem('locationEnabled') === 'true') {
-        locationSwitch.checked = true;
-      }
-
-      if (locationSwitch.checked) {
-        enableLocation();
-      }
-
-      locationSwitch.addEventListener("change", function () {
-        if (this.checked) {
-          enableLocation();
-        } else {
-          coordsElem.textContent = '';
-          shareLinkElem.href = '#';
-          locationElem.classList.add('d-none');
-          localStorage.setItem('locationEnabled', 'false');
-        }
-      });
-
-      function enableLocation() {
-        if ("geolocation" in navigator) {
-          navigator.geolocation.getCurrentPosition(function (position) {
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-            coordsElem.textContent = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-            const link = `https://www.google.com/maps/?q=${latitude},${longitude}`;
-            shareLinkElem.href = link;
-            document.getElementById("chromeLink").textContent = link;
-            locationElem.classList.remove('d-none');
-          });
-          localStorage.setItem('locationEnabled', 'true');
-        }
-      }
-
-      function copyLocationLink() {
-        const textArea = document.createElement("textarea");
-        textArea.value = document.getElementById("chromeLink").textContent;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand("copy");
-        textArea.remove();
-      }
-
-      document.getElementById("copyButton").addEventListener("click", copyLocationLink);
-
-      // Set initial compass image based on theme
-      const html = document.querySelector('html');
-      const initialTheme = html.getAttribute('data-bs-theme');
-      compass.src = initialTheme === 'dark'
-        ? 'https://onlinedigitalcompass.com/images/compass-light.png'
-        : 'https://onlinedigitalcompass.com/images/compass-dark.png';
-
-      // Watch for theme changes
-      const observer = new MutationObserver(function (mutations) {
-        mutations.forEach(function (mutation) {
-          if (mutation.attributeName === 'data-bs-theme') {
-            const newTheme = html.getAttribute('data-bs-theme');
-            compass.src = newTheme === 'dark'
-              ? 'https://onlinedigitalcompass.com/images/compass-light.png'
-              : 'https://onlinedigitalcompass.com/images/compass-dark.png';
-          }
-        });
-      });
-
-      observer.observe(html, { attributes: true, attributeFilter: ['data-bs-theme'] });
-    });
+    document.getElementById("startBtn").addEventListener("click", startCompass);
   </script>
 </body>
 </html>
