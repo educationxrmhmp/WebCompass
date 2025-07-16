@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Android Compass Test</title>
+  <title>Compass (iOS + Android)</title>
   <style>
     body {
       font-family: sans-serif;
@@ -17,41 +17,59 @@
   </style>
 </head>
 <body>
-  <h1>🧭 Android Compass Test</h1>
+  <h1>🧭 Cross-Platform Compass</h1>
   <button id="startBtn">Start Compass</button>
   <p id="heading">Waiting for permission...</p>
 
   <script>
     const headingElem = document.getElementById("heading");
 
-    function handleOrientation(e) {
-      if (e.absolute && e.alpha !== null) {
-        // Use alpha (0–360), reverse it to match compass heading
-        const heading = (360 - e.alpha) % 360;
-        headingElem.textContent = `Heading: ${heading.toFixed(0)}°`;
+    function handleOrientation(event) {
+      let heading;
+
+      if (typeof event.webkitCompassHeading !== "undefined") {
+        // ✅ iOS Safari (gives true heading)
+        heading = event.webkitCompassHeading;
+      } else if (event.absolute && event.alpha !== null) {
+        // ✅ Android Chrome (calculate heading from alpha)
+        heading = 360 - event.alpha;
+      }
+
+      if (heading !== undefined) {
+        heading = (heading + 360) % 360; // Normalize
+        headingElem.textContent = `Heading: ${Math.round(heading)}°`;
       } else {
-        headingElem.textContent = "No compass data.";
+        headingElem.textContent = "Compass data unavailable.";
       }
     }
 
     function startCompass() {
+      // iOS 13+ requires permission via gesture
       if (
         typeof DeviceOrientationEvent !== "undefined" &&
         typeof DeviceOrientationEvent.requestPermission === "function"
       ) {
-        // For iOS 13+ (not needed on Android but safe)
-        DeviceOrientationEvent.requestPermission().then((response) => {
-          if (response === "granted") {
-            window.addEventListener("deviceorientationabsolute", handleOrientation, true);
-          } else {
-            headingElem.textContent = "Permission denied.";
-          }
-        }).catch((e) => {
-          headingElem.textContent = "Error: " + e.message;
-        });
+        DeviceOrientationEvent.requestPermission()
+          .then(response => {
+            if (response === "granted") {
+              window.addEventListener("deviceorientation", handleOrientation, true);
+            } else {
+              headingElem.textContent = "Permission denied.";
+            }
+          })
+          .catch(err => {
+            headingElem.textContent = "Error: " + err.message;
+          });
       } else {
-        // Android
-        window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+        // Android or older iOS
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent) || 
+            (navigator.userAgent.includes("Mac") && "ontouchend" in document)) {
+          // iOS fallback
+          window.addEventListener("deviceorientation", handleOrientation, true);
+        } else {
+          // Android
+          window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+        }
       }
     }
 
