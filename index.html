@@ -3,58 +3,57 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Web Magnetometer</title>
+  <title>Universal Compass</title>
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 2em;
-    }
-    #magnetometer {
-      font-size: 1.5em;
-      margin-top: 1em;
-    }
-    #heading {
-      font-size: 2em;
-      margin-top: 1em;
-    }
+    body { font-family: sans-serif; text-align: center; padding: 2em; }
+    #heading { font-size: 2em; margin-top: 1em; }
   </style>
 </head>
 <body>
-  <h1>🧭 Magnetometer Compass</h1>
-  <button onclick="startMagnetometer()">Start Magnetometer</button>
-  <p id="magnetometer">Waiting for sensor...</p>
-  <p id="heading"></p>
+  <h1>🧭 Universal Compass</h1>
+  <button onclick="startCompass()">Start Compass</button>
+  <p id="heading">Waiting for permission...</p>
 
   <script>
-    const output = document.getElementById("magnetometer");
-    const headingText = document.getElementById("heading");
+    const headingEl = document.getElementById("heading");
 
-    function startMagnetometer() {
-      if ("Magnetometer" in window) {
-        try {
-          const sensor = new Magnetometer({ frequency: 10 });
-
-          sensor.addEventListener("reading", () => {
-            const { x, y, z } = sensor;
-            output.textContent = `x: ${x.toFixed(2)} µT, y: ${y.toFixed(2)} µT, z: ${z.toFixed(2)} µT`;
-
-            // Calculate heading in degrees from x and y
-            const heading = Math.atan2(y, x) * (180 / Math.PI);
-            const normalized = (heading + 360) % 360;
-            headingText.textContent = `Heading: ${normalized.toFixed(0)}°`;
+    function startCompass() {
+      // Request permission on iOS
+      if (
+        typeof DeviceOrientationEvent?.requestPermission === "function"
+      ) {
+        DeviceOrientationEvent.requestPermission()
+          .then((response) => {
+            if (response === "granted") {
+              window.addEventListener("deviceorientation", handleOrientation);
+            } else {
+              headingEl.textContent = "Permission denied.";
+            }
+          })
+          .catch((err) => {
+            headingEl.textContent = "Error: " + err;
           });
-
-          sensor.addEventListener("error", (event) => {
-            output.textContent = `Error: ${event.error.name}`;
-          });
-
-          sensor.start();
-        } catch (error) {
-          output.textContent = `Sensor start failed: ${error.message}`;
-        }
       } else {
-        output.textContent = "Magnetometer API not supported in this browser.";
+        // Other platforms
+        window.addEventListener("deviceorientation", handleOrientation);
+      }
+    }
+
+    function handleOrientation(event) {
+      let heading = null;
+
+      if (typeof event.webkitCompassHeading !== "undefined") {
+        // iOS Safari
+        heading = event.webkitCompassHeading;
+      } else if (event.absolute === true || event.alpha !== null) {
+        // Android and others (approximate)
+        heading = 360 - event.alpha;
+      }
+
+      if (heading !== null) {
+        headingEl.textContent = `Heading: ${Math.round(heading)}°`;
+      } else {
+        headingEl.textContent = "Compass data unavailable.";
       }
     }
   </script>
