@@ -1,61 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Universal Compass</title>
-  <style>
-    body { font-family: sans-serif; text-align: center; padding: 2em; }
-    #heading { font-size: 2em; margin-top: 1em; }
-  </style>
+  <meta charset="UTF-8">
+  <title>Android Compass</title>
 </head>
 <body>
-  <h1>🧭 Universal Compass</h1>
-  <button onclick="startCompass()">Start Compass</button>
-  <p id="heading">Waiting for permission...</p>
+  <h1>Compass</h1>
+  <p id="angle">Waiting for heading...</p>
+  <button id="startButton">Start Compass</button>
 
   <script>
-    const headingEl = document.getElementById("heading");
+    const angleDisplay = document.getElementById("angle");
 
-    function startCompass() {
-      // Request permission on iOS
-      if (
-        typeof DeviceOrientationEvent?.requestPermission === "function"
-      ) {
-        DeviceOrientationEvent.requestPermission()
-          .then((response) => {
-            if (response === "granted") {
-              window.addEventListener("deviceorientation", handleOrientation);
-            } else {
-              headingEl.textContent = "Permission denied.";
-            }
-          })
-          .catch((err) => {
-            headingEl.textContent = "Error: " + err;
-          });
-      } else {
-        // Other platforms
-        window.addEventListener("deviceorientation", handleOrientation);
-      }
-    }
-
-    function handleOrientation(event) {
-      let heading = null;
-
-      if (typeof event.webkitCompassHeading !== "undefined") {
-        // iOS Safari
-        heading = event.webkitCompassHeading;
-      } else if (event.absolute === true || event.alpha !== null) {
-        // Android and others (approximate)
-        heading = 360 - event.alpha;
+    function handleOrientationEvent(e) {
+      let heading;
+      if (e.webkitCompassHeading !== undefined) {
+        heading = e.webkitCompassHeading;
+      } else if (e.alpha !== null) {
+        heading = 360 - e.alpha;
       }
 
       if (heading !== null) {
-        headingEl.textContent = `Heading: ${Math.round(heading)}°`;
+        heading = Math.round(heading);
+        angleDisplay.textContent = `Heading: ${heading}°`;
       } else {
-        headingEl.textContent = "Compass data unavailable.";
+        angleDisplay.textContent = "No compass data.";
       }
     }
+
+    function startCompass() {
+      if (
+        typeof DeviceOrientationEvent !== "undefined" &&
+        typeof DeviceOrientationEvent.requestPermission === "function"
+      ) {
+        DeviceOrientationEvent.requestPermission().then(response => {
+          if (response === "granted") {
+            addListeners();
+          } else {
+            angleDisplay.textContent = "Permission denied.";
+          }
+        }).catch(console.error);
+      } else {
+        addListeners();
+      }
+    }
+
+    function addListeners() {
+      window.addEventListener("deviceorientationabsolute", handleOrientationEvent, true);
+    }
+
+    document.getElementById("startButton").addEventListener("click", startCompass);
   </script>
 </body>
 </html>
